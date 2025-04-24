@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 유튜브 수익화 예측기</title>
+  <meta name="description" content="유튜브 채널의 수익화 상태, 예상 수익, 가입일, 국가 정보를 확인해보세요!">
+  <meta name="keywords" content="유튜브 수익화, 유튜브 예측기, 채널 분석, 예상 수익">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f4f4f9; padding: 30px; }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    input, button {
+      padding: 12px;
+      font-size: 16px;
+      width: 100%;
+      margin-top: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { background: #45a049; }
+    .result {
+      margin-top: 20px;
+      background: #f1fdf7;
+      border: 1px solid #d9efe2;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: left;
+    }
+    .profile-img {
+      border-radius: 50%;
+      width: 80px;
+      height: 80px;
+      display: block;
+      margin: 0 auto 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📊 유튜브 수익화 예측기</h2>
+    <input type="text" id="urlInput" placeholder="유튜브 채널 URL 입력 (예: https://www.youtube.com/@채널명)">
+    <select id="countrySelect">
+      <option value="KR">🇰🇷 한국</option>
+      <option value="US">🇺🇸 미국</option>
+      <option value="JP">🇯🇵 일본</option>
+      <option value="IN">🇮🇳 인도</option>
+    </select>
+    <button onclick="checkMonetization()">예측하기 🚀</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    async function checkMonetization() {
+      const inputUrl = document.getElementById("urlInput").value;
+      const country = document.getElementById("countrySelect").value;
+      const apiKey = "AIzaSyDuBjP3YfWCS1Vc82Sg-28l1JEPFomDb18"; // YouTube API 키 입력
+
+      const channelId = await getChannelId(inputUrl, apiKey);
+      if (!channelId) {
+        document.getElementById("result").innerText = "채널 ID를 추출할 수 없습니다.";
+        return;
+      }
+
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`);
+      const data = await res.json();
+      const info = data.items?.[0];
+      if (!info) {
+        document.getElementById("result").innerText = "채널 정보를 불러오지 못했습니다.";
+        return;
+      }
+
+      const stats = info.statistics;
+      const snippet = info.snippet;
+      const views = parseInt(stats.viewCount);
+      const profile = snippet.thumbnails.default.url;
+      const date = new Date(snippet.publishedAt);
+      const months = getMonthsSince(date);
+      const cpm = getCpmRange(country);
+      const revenueLow = (views / 1000) * cpm.low;
+      const revenueHigh = (views / 1000) * cpm.high;
+
+      document.getElementById("result").innerHTML = `
+        <img src="${profile}" class="profile-img">
+        <strong>📛 채널명:</strong> ${snippet.title}<br>
+        <strong>📅 가입일:</strong> ${date.toLocaleDateString()} (${months}개월 전)<br>
+        <strong>🌍 국가:</strong> ${country}<br>
+        <strong>👥 구독자:</strong> ${stats.subscriberCount || '비공개'}<br>
+        <strong>📈 조회수:</strong> ${views.toLocaleString()}<br>
+        <strong>💰 예상 수익:</strong> $${revenueLow.toFixed(2)} ~ $${revenueHigh.toFixed(2)}
+      `;
+    }
+
+    async function getChannelId(url, apiKey) {
+      if (url.includes("/channel/")) return url.split("/channel/")[1];
+      if (url.includes("@")) {
+        const handle = url.split("@")[1];
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${handle}&key=${apiKey}`);
+        const data = await res.json();
+        return data.items?.[0]?.snippet?.channelId;
+      }
+      return null;
+    }
+
+    function getCpmRange(country) {
+      const cpm = {
+        KR: { low: 0.5, high: 2.0 },
+        US: { low: 1.5, high: 4.5 },
+        JP: { low: 1.0, high: 3.0 },
+        IN: { low: 0.3, high: 1.2 }
+      };
+      return cpm[country] || cpm['KR'];
+    }
+
+    function getMonthsSince(date) {
+      const now = new Date();
+      return (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+    }
+  </script>
+</body>
+</html>
